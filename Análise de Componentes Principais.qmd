@@ -1,7 +1,7 @@
 ---
 title: "Análise de Componentes Principais"
-author: "Francisco Rubens"
-format: docx
+author: "Francisco Rubens e Julio Cesar"
+format: pdf
 ---
 
 ## Análise descritiva
