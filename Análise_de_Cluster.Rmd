@@ -1,0 +1,235 @@
+---
+title: "Análise Multivariada"
+subtitle: "Análise de Cluster"
+author: "Francisco Rubens"
+date: "2023-05-30"
+output:
+  rmdformats::readthedown:
+    highlight: kate
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      warning = FALSE,
+                      message = FALSE,
+                      cache=FALSE,
+                      prompt=FALSE,
+                      tidy=TRUE,
+                      comment=NA)
+```
+
+```{r libraries}
+library(ggplot2)
+library(ggpubr)
+library(DT)
+library(mclust)
+library(factoextra)
+library(glue)
+library(cluster)
+library(fpc)
+library(ape)
+library(purrr)
+library(mclust)
+```
+
+## Dados
+
+Os dados se referem a uma análise química de vinhos. São 178 amostras de diferentes vinhos italianos de 3 tipos de uvas usadas na fabricação dos vinhos, tal como Sauvignon Blanc, Cabernet ou Chardonnay. Foram analisadas 13 variáveis (V2 a V14), contendo as concentrações de diferentes compostos químicos na amostra.  
+
+As variáveis observadas para cada vinho são:  
+
+V2. Álcool, que é criado como um resultado direto do processo de fermentação e é também um indicador do conteúdo de álcool das uvas.  
+V3. Ácido málico, que é um acido primário em uvas, que podem influenciar o gosto dos vinhos.  
+V4. Teor de cinzas, que são um indicador de qualidade.  
+V5. Alcalinidade da cinza, uma propriedade química das cinzas.  
+V6. Magnésio, um mineral.  
+V7. Fenóis totais, uma classe de moléculas importantes para definir o sabor, cheiro, benefícios medicinais e diversidade do vinho. Os tipos de fenóis são classificados como flavonóides e não flavonoides.  
+V8. Flavonóides, um tipo de fenol no vinho tinto que possui um maior impacto no sabor do vinho.  
+V9. Fenóis não flavonóides, outro tipo de fenol.  
+V10. Proantocianinas, tipo de flavonóide das semestes das uvas.  
+V11. Intensidade da cor.  
+V12. Tonalidade do vinho.  
+V13. OD280/OD315 de vinhos diluídos  
+V14. Teor de prolina, que é alterada pela variedade de uvas.  
+
+```{r read-data}
+wine <- read.csv("wine.data", header = FALSE)
+dados <- wine[,-1]
+dados.padronizados <- scale(dados)
+datatable(dados, caption = "Base de dados")
+```
+
+## Análise exploratória
+
+```{r}
+boxplot(dados,col="magenta")
+boxplot(dados.padronizados,col="blue")
+```
+```{r}
+knitr::kable(summary(dados))
+```
+```{r}
+knitr::kable(cov(dados), digits = 2, caption = "Matriz de variância e covariância")
+```
+```{r}
+knitr::kable(cor(dados), digits = 2, caption = "Matriz de correlação")
+plot(dados, col="red")
+```
+
+
+
+## Matriz de distância euclidiana  
+
+### Com os dados originais  
+
+```{r euclidean-dist}
+d11=dist(dados, method = "euclidean") # matriz de distancias
+m=as.matrix(d11)
+# print(d11)
+#print(m,digits=2)
+m %>% DT::datatable(caption = "Matriz de distância euclidiana")
+#knitr::kable(m, caption = "Matriz de distância euclidiana")
+# Visulizando as distância entre os objetos
+# vermelho - perto, azul - longe, branco - 
+fviz_dist(d11,order=TRUE)
+```  
+
+### Dados padronizados  
+
+```{r scaled-euclidean-dist}
+d1=dist(dados.padronizados, method = "euclidean")
+m1=as.matrix(d1)
+#print(m2,digits=2)
+m1 %>% DT::datatable(caption = "Matriz de distância euclidiana - dados padronizados")
+fviz_dist(d1,order=TRUE)
+```  
+
+## Distância de Manhattan  
+
+```{r scaled-manhattan-dist}
+d2=dist(dados.padronizados, method = "manhattan")
+m2=as.matrix(d2)
+m2 %>% DT::datatable(caption = "Matriz de distância de Manhattan - dados padronizados")
+#print(m2,digits=2)
+fviz_dist(d2,order=TRUE)
+```  
+
+## Distância de Minkowski  
+
+```{r scaled-minkowski-dist}
+d3=dist(dados.padronizados, method = "minkowski")
+m3=as.matrix(d3)
+m3 %>% DT::datatable(caption = "Matriz de distância de Minkowski - dados padronizados")
+#print(m3,digits=2)
+fviz_dist(d3,order=TRUE)
+```
+
+## Algoritmos de Agrupamento
+
+1. Hierarquico
+2. k-means
+3. c-means
+
+## Metodo Hierarquico
+
+```{r wardD-method}
+fit=hclust(d1, method="ward.D")  # method pode ser "ward.D", "ward.D2", "single", #"complete", "average" (= UPGMA), "mcquitty" (= WPGMA), "median" (= WPGMC) or "centroid" (= UPGMC).
+#names(fit)
+#fit$labels[fit$order]
+
+# agnes {cluster} - Computes agglomerative hierarchical clustering of the dataset.
+
+```
+
+### Dendrograma  
+
+```{r dendrograma}
+#par(mfrow = c(1, 2)); 
+#plot(fit, hang = 0.1,cex = 0.6); 
+#plot(fit, hang = -1,col="red",cex = 0.6) 
+
+#plot(fit,col="blue",cex = 0.6)
+#groups <- cutree(fit, k=4) # linha de corte k
+#rect.hclust(fit, k=4, border="red")# retangulo mostrando os clusters
+
+plot(fit, hang = 0.1,cex = 0.6); 
+groups <- cutree(fit, k=2) # linha de corte k
+rect.hclust(fit, k=2, border="red") # retangulo mostrando os clusters
+
+plot(fit, hang = 0.1,cex = 0.6); 
+groups <- cutree(fit, k=3) # linha de corte k
+rect.hclust(fit, k=3, border="red") # retangulo mostrando os clusters
+
+plot(fit, hang = 0.1,cex = 0.6); 
+groups <- cutree(fit, k=4) # linha de corte k
+rect.hclust(fit, k=4, border="red") # retangulo mostrando os clusters
+
+
+```
+
+```{r}
+# Plot do dendograma na horizontal
+ #plot(as.dendrogram(fit), edgePar=list(col=3, lwd=4), horiz=T, main="") 
+```
+
+```{r}
+wss <- sapply(1:13, function(k){kmeans(dados.padronizados, centers = k)$tot.withinss})
+
+k <- 3
+modelo <- kmeans(dados.padronizados, centers = k)
+
+fviz_nbclust(dados.padronizados, kmeans, method = "wss")+
+  geom_vline(xintercept = 3, linetype = 2)
+```
+
+
+### Salvando o resultado
+```{r}
+plot.phylo(as.phylo(fit), type="p", edge.col=4, edge.width=2, 
+           show.node.label=TRUE, no.margin=TRUE,cex = 0.6)
+#fit$labels[fit$order] 
+mycl=cutree(fit, k=3)
+dados.agrupados <- data.frame(wine,mycl) 
+dados.agrupados[dados.agrupados$V1 != dados.agrupados$mycl,] %>% dim
+```
+
+```{r}
+clust <- cutree(fit, k = 3)
+fviz_cluster(list(data = dados.padronizados, cluster = clust))
+```  
+
+## Método K-means  
+
+```{r}
+kmedia=kmeans(dados.padronizados, 3) # 5 cluster solution
+kmedia$centers
+kmedia$size
+kmedia$iter
+
+aggregate(dados.padronizados,by=list(kmedia$cluster),FUN=mean)
+# append cluster assignment
+#crimespad=data.frame(crimespad, kmedia$cluster) 
+kmeans=data.frame(wine, kmedia$cluster)
+kmeans[kmeans$V1 != kmeans$kmedia.cluster,] %>% dim
+```
+
+## Método c-means
+```{r}
+fuzz=fanny(dados.padronizados, 3,memb.exp=1.5)
+summary(fuzz)
+plot(fuzz)
+
+#stab <- stability(fuzz, graph = FALSE,B = 10)
+si=fuzz$silinfo
+```
+
+
+
+
+
+
+
+

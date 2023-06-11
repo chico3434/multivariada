@@ -1,0 +1,294 @@
+---
+title: "Análise Fatorial"
+output:
+   html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      warning = FALSE,
+                      message = FALSE,
+                      cache=FALSE,
+                      prompt=FALSE,
+                      tidy=TRUE,
+                      comment=NA)
+```
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+options(scipen = 999)
+```
+
+
+Referem-se a n = 54 observações de p = 7 variáveis apresentadas na Tabela 1.9, p. 44 em Johnson and Wichern (2007, Applied Multivariate Statisitical Analysis, sixth ed. Upper Saddle River, NJ: Pearson/Prentice Hall). Os dados encontram-se na página http://www.stat.wisc.edu/~rich/JWMULT06dat/T1-9.dat ou no arquivo T1.9.csv
+
+Os dados são de 2005 e dizem respeito aos recordes femininos em 54 países, listados na primeira coluna do arquivo. As demais colunas contêm os resultados das seguintes provas (unidades): 100 m (s), 200 m (s), 400 m (s), 800 m (min), 1500 m (min), 3000 m (min) e maratona (min).  
+
+1)	Faça a leitura dos dados no R
+2)	Calcule as estatísticas descritivas dos dados, interpretando o resultado.
+3)	As varíaveis são medidas em escalas diferentes?
+4)	Encontre a matriz de correlação dos dados e verifique se é possível percebermos algum tipo de agrupamento das variáveis.
+5)	Para avaliarmos se é adequado a utilização da análise fatorial utiliza-se o teste de esfericidade de Bartlett. Escreva as hipóteses do teste e verifique se é adequado utilizar a análise fatorial neste caso.
+6)	Rode o modelo fatorial definindo o número de fatores de acordo com as análises feitas anteriormente
+7)	Busque a interpretação dos fatores
+8)	Rotacione os fatores por algum dos métodos e veja se há uma melhora na interpretação
+
+# Leitura dos dados
+```{r}
+dados=read.csv2("T1.9.csv",T)
+dados1=dados[, -8] 
+(p=ncol(dados1))
+head(dados1)
+```
+
+# Análise exploratória - Graficos
+```{r}
+boxplot((dados1),col="magenta")
+boxplot(scale(dados1),col="blue")
+
+```
+
+# Análise exploratória - Estatísticas descritivas
+```{r}
+summary(dados1)
+
+```
+
+# matriz de variância e covariância
+```{r}
+round(cov(dados1),2)
+round(apply(dados1, 2, sd),2)
+```
+
+# matriz de correlação
+```{r}
+round(cor(dados1),2)
+matcor=cor(dados1) 
+print(matcor, digits = 2)
+plot(dados1,col="red")
+pairs(dados1)
+
+#lowCor(dados1)
+
+```
+
+# outra forma
+```{r}
+#install.packages("corrplot")
+library(corrplot) 
+## correlaçoes em azul positivas e mais escuro maiores as correlações
+corrplot(cor(dados1))
+corrplot(cor(dados1), order = 'AOE')
+corrplot(cor(dados1), order = 'AOE', addCoef.col = 'grey')
+```
+
+# Calculo dos autovalores e autovetores - matriz de covariância
+```{r}
+autovalores1<- eigen(cov(dados1))
+autovalores1$values
+autovalores1$vectors
+
+```
+
+# Calculo dos autovalores e autovetores - matriz de correlação
+```{r}
+autovalores2<- eigen(cor(dados1))
+autovalores2$values
+autovalores2$vectors
+```
+
+# Camponentes principais - Comando PRCOMP
+```{r}
+dados=dados1
+
+# COMANDO PRCOMP
+
+cp1=prcomp(dados)            # utiliza a matriz de covariância como default
+cp=prcomp(dados,scale=TRUE)  # utiliza a matriz de correlação
+
+op <- par(mfrow = c(1,2))
+plot(cp1,col="magenta")
+plot(cp,col="blue")
+par(op)
+
+screeplot(cp)
+
+plot(cp,type="lines",col="red")
+
+```
+
+# Proporção da variância explicada pelas componentes - matriz covariância
+```{r}
+summary(cp1)
+```
+
+# Proporção da variância explicada pelas componentes - matriz correlação
+```{r}
+summary(cp)
+```
+# Calculo dos escores das componentes - matriz covariância
+```{r}
+componentes1=cp1$x
+#componentes1
+cor(componentes1)
+boxplot(componentes1,col="red")
+biplot(cp1)
+
+```
+
+# Calculo dos escores das componentes - matriz correlação
+```{r}
+componentes=cp$x
+#componentes
+cor(componentes)
+boxplot(componentes,col="red")
+biplot(cp)
+
+```
+# indicadores considerando correlação
+```{r}
+ind=(componentes-min(componentes))/(max(componentes)-min(componentes))
+boxplot(componentes,col="blue")
+boxplot(ind)
+
+```
+
+# Medidas de adequação
+
+Para testar a conveniência do modelo fatorial pode-se aplicar o teste de esfericidade de Bartlett para testar a hipótese nula, de que as variáveis não sejam correlacionadas na população. Um valor elevado da estatística de teste favorece a rejeição da hipótese nula.
+
+Também, a medida de adequacidade da amostra de Kaiser-Meyer-Olkin (KMO) compara as magnitudes dos coeficientes de correlação observados com as magnitudes dos coeficientes de correlação parcial. Pequenos valores de KMO indicam que as correlações entre os pares de variáveis não podem ser explicadas por outras variáveis, indicando que a análise fatorial não é adequada.
+
+Hipóteses:
+
+Ho: A matriz de correlação da população é uma matriz identidade, ou seja as variáveis não são correlacionadas na população.
+
+H1: A matriz de correlação da população não é uma matriz identidade, ou seja as variáveis são correlacionadas na população.
+
+
+```{r}
+#install.packages("psych")
+#library(psych)
+
+### Bartlett
+#cortest.bartlett(cor(dados1))
+#bartlett.test(cor(dados1))
+
+## KMO
+#KMO(cor(dados1))
+#**************************************************************
+```
+
+#Teste de Bartlett
+```{r}
+#Teste de Bartlett - a hipótese nula da matriz de correlação ser uma matriz identidade, isto é, avalia se os componentes fora da diagonal principal são zero. O resultado significativo indica que existem algumas relações entre as variáveis.bartlett.test(dados1)
+
+n=nrow(dados1)
+p=ncol(dados1)
+R=det(cor(dados1))
+
+X2=-((n-1)-(2*p+5)/6)*log(R);
+X2
+v=p*(p-1)/2
+teste=qchisq(0.05,v)
+
+X2>teste  #O modelo é apropriado para a análise fatorial pelo teste de Bartlett de esfericidade
+
+```
+# KMO
+```{r}
+#Teste KMO (Kaiser-Meyer-Olkin) - avalia a adequação do tamanho amostra. Varia entre 0 e 1, onde: zero indica inadequado para análise fatorial, aceitável se for maior que 0.5, recomendado acima de 0.8.
+kmo = function(x)
+{
+  x = subset(x, complete.cases(x))
+  r = cor(x)
+  r2 = r^2 
+  i = solve(r) 
+  d = diag(i) 
+  p2 = (-i/sqrt(outer(d, d)))^2 
+  diag(r2) <- diag(p2) <- 0 
+  KMO = sum(r2)/(sum(r2)+sum(p2))
+  MSA = colSums(r2)/(colSums(r2)+colSums(p2))
+  return(list(KMO=KMO, MSA=MSA))
+}
+
+kmo(dados1)
+```
+
+# Modelo Fatorial _ Metodos Camponentes principais - Comando PRINCOMP
+```{r}
+# componentes principais
+acpcor=prcomp(dados1, scale = TRUE)
+summary(acpcor)
+plot(1:ncol(dados1), acpcor$sdev^2, type = "b", xlab = "Componente",ylab = "Variância", pch = 20, cex.axis = 1.3, cex.lab = 1.3,col="red")
+
+k = 2 
+(carfat=acpcor$rotation[, 1:k] %*% diag(acpcor$sdev[1:k]))
+colnames(carfat)=paste("Fator", 1:k, sep = " ") 
+carfat
+# rotação dos fatores
+carfatr = varimax(carfat)
+carfatr
+# comunalidade e variância especifica
+comum=rowSums(carfat^2) 
+vespec=diag(cor(dados1)) - comum 
+estimat=cbind(comum, vespec, diag(cor(dados1))) 
+rownames(estimat)=colnames(dados1) 
+colnames(estimat)=c("Comunalidade", "Variância única", "Variância") 
+estimat
+
+# matriz de residuos
+resid=cor(dados1) - (carfat %*% t(carfat) + diag(vespec)) 
+resid
+```
+
+# Modelo Fatorial _ Metodo Maxima Verossimilhança - Comando factanal
+```{r}
+#factanal(x, factors, data = NULL, covmat = NULL, n.obs = NA,subset, na.action, start = NULL,scores = c("none", "regression", "Bartlett"),rotation = "varimax", control = NULL, ...)
+
+fat=factanal(dados1,factors=2,rotation="none")
+
+fat$loadings
+
+unicidade=fat$uniquenesses
+comunalidade_MV=1-unicidade
+
+estimat=cbind(comum, vespec, comunalidade_MV,unicidade)
+rownames(estimat)=colnames(dados1) 
+colnames(estimat)=c("Comunalidade_CP", "Unicidade_CP", "Comunalidade_MV","Unicidade_MV") 
+estimat
+```
+
+# Rotação de fatores
+```{r}
+fat1=factanal(dados1,factors=2,rotation="varimax")
+
+fat1$loadings
+
+unicidade1=fat1$uniquenesses
+comunalidade1_MV=1-unicidade1
+
+estimat=cbind(comum, vespec, comunalidade_MV,unicidade,comunalidade1_MV,unicidade1)
+rownames(estimat)=colnames(dados1) 
+colnames(estimat)=c("Comunalidade_CP", "Unicidade_CP", "Comunalidade_MV","Unicidade_MV","Comunalidade_varimax","Unicidade_varimax") 
+estimat
+```
+```{r}
+
+fat2=factanal(dados1,factors=2,rotation="varimax",scores="regression")
+scores=fat2$scores
+
+scores_ind=(scores-min(scores))/(max(scores)-min(scores))
+boxplot(scores,col="blue")
+boxplot(scores_ind,col="red")
+
+scor=cbind(scores,scores_ind)
+scor
+```
+
+
+

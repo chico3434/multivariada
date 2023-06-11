@@ -1,0 +1,108 @@
+---
+title: "Análise descritiva"
+author: "Francisco Rubens"
+format: pdf
+---
+
+```{r, echo=F, warning=F, error=F, message=F}
+library(lmtest)
+```
+
+
+# Carregando a base
+
+```{r}
+data <- read.csv2("usairpollution.csv")
+```
+
+# Análise
+
+Os dados são de poluição do ar de 41 cidades dos Estados Unidos.
+Relativos a base, as variáveis são:
+
+Variável| Descrição
+:-|:----------:
+X| Cidade dos Estados Unidos
+SO2| Teor de SO2 (dióxido de enxofre) do ar em microgramas por metro cúbico.
+temp| Temperatura média anual em Fahrenheit.
+manu| Número de empresas manufatureiras que empregam 20 ou mais trabalhadores.
+popul| Tamanho da população (censo de 1970) em milhares.
+wind| Velocidade média anual do vento em milhas por hora.
+precip| Precipitação média anual em polegadas.
+predays| Número médio de dias com precipitação por ano.
+
+```{r}
+summary(data[,-1])
+```
+
+Pelo `summary` é possível ver os mínimos, máximos, médias e os quartis. É possível porceber as variáveis que são bem assimétricas (SO2, manu, popul). Nota-se também que algumas variáveis devem possuir outliers (SO2, manu, popul).
+
+```{r}
+for(i in 2:8){
+  boxplot(data[,i], main=paste("Boxplot de",names(data)[i]), col=rainbow(7)[i-1])
+}
+```
+
+Pelos boxplots é possível perceber as assimetrias e os outliers.  
+
+# Relação entre as variáveis
+
+A concentração média anual de dióxido de enxofre, em microgramas por metro cúbico, é uma medida da poluição do ar em cidades. A questão de interesse aqui é quais ou como os aspectos do clima e da ecologia humana medidos pelas outras seis variáveis influenciam a poluição?
+
+```{r}
+
+plot(data[,-1], col="red")
+
+```
+
+Por esse gráfico é possível perceber as relação entre as variáveis, e nota-se uma correlação linear forte entre `manu` e `popul`. Já SO2 não parece ter nenhuma correlação forte com outras variáveis, mas é possível perceber alguma correlação com `manu` e `popul`, principalmente com `manu`, em que os valores estão menos dispersos.
+
+Para verificar a influência das variáveis na poluição foram ajustados alguns modelos, o modelo que mais explicou a poluição foi: 
+
+$$Y_i = \beta_0 + \beta_1X_{i1} + \beta_2X_{i2} + \epsilon_i$$
+Sendo, $X_{i1}$ a variável `manu` e $X_{i2}$ a variável `popul`, além disso, foram removidos os outliers (valores acima de 70) de `SO2`.
+```{r}
+
+df <- data[data$SO2 <= 70,]
+
+fit <- lm(df[,2]~., data = df[,c(-1,-2, -3, -6, -7, -8)])
+summary(fit)
+```
+
+Sendo assim, o modelo ajustado foi:
+
+$$Y_i = 22,36 + 0,07X_{i1} - 0,04X_{i2} + \epsilon_i$$
+Modelo que explica 39% da variação dos dados, com todos os coeficiente significativos a 5% de significância.
+
+## Verificando as suposições 
+
+```{r}
+plot(fit$residuals)
+abline(h=0, col="red")
+```
+
+No gráfico de dispersão não se percebe nenhuma tendência, logo os resíduos parecem estar aleatoriamente distribuidos em torno do zero.
+
+```{r}
+par(mfrow=c(1,2))
+hist(fit$residuals, main="Histograma dos resíduos")
+qqnorm(fit$residuals)
+qqline(fit$residuals, col="red")
+```
+
+Verificando a suposição de normalidade, vemos uma pequena assimetria no histograma dos resíduos, porém um gráfico os valores concentrados em torno do zero com as caudas mais leves. Já no gráfico Quantil-Quantil da normal, nota-se que apenas as caudas não estão em conformidade com a linha da normal teórica, o que não é um problema.
+
+```{r}
+shapiro.test(fit$residuals)
+manu <- df[,4]
+popul <- df[,5]
+bptest(formula(fit))
+```
+Para complementar a análise gráfica foi feito o teste de Shapiro-Wilk, que não rejeita a hipótese de normalidade (p-valor de 0,1584) e o teste de Breusch-Pagan que não rejeita a hipótese de homogeneidade da variância (p-valor de 0,9953).
+
+## Conclusão do modelo  
+
+Dado que o modelo parece não violar as suposições do modelo, conclui-se que o número de empresas manufatureiras que empregam 20 ou mais trabalhadores influenciam no aumento do teor de SO2 (dióxido de enxofre) do ar em microgramas por metro cúbico, enquanto o tamanho da população (censo de 1970) em milhares influencia na diminuição.
+
+
+

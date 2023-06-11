@@ -1,0 +1,307 @@
+---
+title: "Análise Fatorial"
+author: "Francisco Rubens"
+format: html
+theme:
+  light: flatly
+  dark: darkly
+---
+
+```{r}
+#| warning: false
+#| message: false
+library(dplyr)
+library(ggplot2)
+library(corrplot)
+library(psych)
+options(scipen = 999)
+options(OutDec = ",")
+```
+
+Os dados disponíveis em http://archive.ics.uci.edu/ml/machine-learning-databases/wine/wine.data, se referem a uma análise química de vinhos. São 178 amostras de diferentes vinhos de 3 tipos de uvas usadas na fabricação dos vinhos, tal como Sauvignon Blanc, Cabernet ou Chardonnay. Foram analisadas 13 variáveis (V2 a V14), contendo as concentrações de diferentes compostos químicos na amostra.
+
+**Explicar os dados.**
+
+1)  Faça a leitura dos dados no R
+2)  Calcule as estatísticas descritivas dos dados, interpretando o resultado.
+3)  As varíaveis são medidas em escalas diferentes?
+4)  Encontre a matriz de correlação dos dados e verifique se é possível percebermos algum tipo de agrupamento das variáveis.
+5)  Para avaliarmos se é adequado a utilização da análise fatorial utiliza-se o teste de esfericidade de Bartlett. Escreva as hipóteses do teste e verifique se é adequado utilizar a análise fatorial neste caso.
+6)  Rode o modelo fatorial definindo o número de fatores de acordo com as análises feitas anteriormente
+7)  Busque a interpretação dos fatores
+8)  Rotacione os fatores por algum dos métodos e veja se há uma melhora na interpretação
+
+# Leitura dos dados
+
+```{r}
+dados <- read.csv(file="wine.data",header=F)
+data <- dados[,-1]
+(p <- ncol(data))
+(n <- nrow(data))
+head(data)
+```
+
+# Análise exploratória - Graficos
+
+```{r}
+boxplot((data), col="magenta")
+boxplot(scale(data), col="blue")
+```
+
+Pelos boxplots não padronizados é possível perceber que a escala da variável 14 é bem diferente das demais.  
+
+# Análise exploratória - Estatísticas descritivas
+
+```{r}
+knitr::kable(summary(data))
+```
+
+Pelas estatisticas de medida percebe-se que as variáveis possuem escalas distintas. Nota-se, por exemplo, a discrepância da escala da variável 14 com as demais.
+
+# Matriz de variância e covariância
+
+```{r}
+knitr::kable(cov(data), digits = 2, caption = "Matriz de variância e covariância")
+```
+
+Por conta das diferentes escalas, é complicado tirar conclusões a partir de matriz de variância-covariância. O ideal é fazer a matriz de correlação que é a mesma coisa que a matriz de covariância das variáveis padronizadas.
+
+# Matriz de correlação
+
+```{r}
+#knitr::kable(round(cor(data),2))
+knitr::kable(cor(data), digits = 2, caption = "Matriz de correlação")
+plot(data, col="red")
+#pairs(data)
+corrplot(cor(data), method = "color", addCoef.col = "black", number.cex = 0.7)
+corrplot(cor(data), order = 'AOE', addCoef.col = "black", number.cex = 0.7, method = "color")
+```
+
+# Calculo dos autovalores e autovetores - matriz de covariância
+
+Calculando os autovalores usando a matriz de variância de covariância:
+
+```{r}
+autovalores1 <- eigen(cov(data))
+knitr::kable(col.names = "Autovalores",autovalores1$values)
+knitr::kable(autovalores1$vectors, digits = 4, col.names = paste0("av",1:13))
+
+```
+
+Novamente, o ideal é não usar a matriz de variância-covariância por conta da escala. O ideal é calcular os autovalores e autovetores da matriz de correlação (variáveis padronizadas).
+
+# Calculo dos autovalores e autovetores - matriz de correlação
+
+Calculando os autovalores e autovetores usando a matriz de correlação:
+
+```{r}
+autovalores2 <- eigen(cor(data))
+knitr::kable(autovalores2$values, col.names = "Autovalores")
+knitr::kable(autovalores2$vectors, digits = 4, col.names = paste0("av", 1:13))
+```
+
+# Camponentes principais - Função PRCOMP
+
+Calculando as componentes principais usando a função prcomp:
+
+```{r}
+cp1 <- prcomp(data)            # utiliza a matriz de covariância como default
+cp <- prcomp(data,scale=TRUE)  # utiliza a matriz de correlação
+
+op <- par(mfrow = c(1,2))
+plot(cp1, col="magenta", main="Matriz de covariância")
+plot(cp, col="blue", main="Matriz de correlação")
+par(op)
+
+plot(cp, type="lines", col="black", lwd = 2, main = "Screeplot - Matriz de correlação")
+lines(c(1, 10), c(1, 1), col = "red", lwd = 2)
+```
+
+Pelo screeplot usando a matriz de variância e covariância, nota-se que o componente 1 é totalmente desproporcional aos demais, explicando quase toda a variância total. Já o screeplot usando a matriz de correlação é mais equilibrado o quanto as componentes explicam. Pelo screeplot de linha percebe-se que há 3 componentes acima de 1, logo, usando screeplot como critério para escolher o número de fatores, 3 fatores seria a escolha.
+
+# Proporção da variância explicada pelas componentes - matriz covariância
+
+```{r}
+scp1 <- summary(cp1)
+knitr::kable(scp1$importance)
+```
+
+Pela proporção da variância explicada é possível confirmar o que o screeplot já havia mostrado, a componente 1 explica 99,81% da variância total. Bem desproporcional com relação as demais componentes.
+
+# Proporção da variância explicada pelas componentes - matriz correlação
+
+```{r}
+scp <- summary(cp)
+knitr::kable(scp$importance)
+```
+
+Pela proporção explicada acumulada nota-se que para explicar ao menos 90% da variância total seriam necessários 8 componentes. A proporção explicada usando matriz de correlação está melhor distribuida que usando a matriz de covariância
+
+# Calculo dos escores das componentes - matriz covariância
+
+```{r}
+#| warning: false
+componentes1 <- cp1$x
+knitr::kable(cor(componentes1), digits = 2)
+boxplot(componentes1,col="red")
+biplot(cp1)
+
+```
+
+# Calculo dos escores das componentes - matriz correlação
+
+```{r}
+componentes=cp$x
+knitr::kable(cor(componentes), digits = 2)
+boxplot(componentes,col="red")
+biplot(cp)
+
+```
+
+# indicadores considerando correlação
+
+```{r}
+ind <- (componentes-min(componentes))/(max(componentes)-min(componentes))
+boxplot(componentes,col="blue")
+boxplot(ind)
+
+```
+
+# Medidas de adequação
+
+Para testar a conveniência do modelo fatorial pode-se aplicar o teste de esfericidade de Bartlett para testar a hipótese nula, de que as variáveis não sejam correlacionadas na população. Um valor elevado da estatística de teste favorece a rejeição da hipótese nula.
+
+Também, a medida de adequacidade da amostra de Kaiser-Meyer-Olkin (KMO) compara as magnitudes dos coeficientes de correlação observados com as magnitudes dos coeficientes de correlação parcial. Pequenos valores de KMO indicam que as correlações entre os pares de variáveis não podem ser explicadas por outras variáveis, indicando que a análise fatorial não é adequada.
+
+## Teste de Bartlett  
+
+Hipóteses:
+
+Ho: A matriz de correlação da população é uma matriz identidade, ou seja as variáveis não são correlacionadas na população.
+
+H1: A matriz de correlação da população não é uma matriz identidade, ou seja as variáveis são correlacionadas na população.
+
+```{r}
+options(scipen = 0)
+cortest.bartlett(cor(data), n = 178)
+```
+Pela estatística do p-valor, rejeita-se $H_0$ a 5% de significância. Logo, existe relação entre as variáveis, com isso o modelo fatorial é apropriado.
+
+## KMO  
+
+Teste KMO (Kaiser-Meyer-Olkin) - avalia a adequação do tamanho amostra. Varia entre 0 e 1, onde: zero indica inadequado para análise fatorial, aceitável se for maior que 0,5, recomendado acima de 0,8.  
+
+```{r}
+options(scipen = 999)
+KMO(cor(data))
+```
+
+Com o valor de 7,8, pode-se dizer que a análise fatorial é adequada.  
+
+# Modelo Fatorial - Métodos dos Camponentes principais  
+
+```{r}
+acpcor <- prcomp(data, scale = TRUE)
+scp <- summary(acpcor)
+knitr::kable(scp$importance)
+plot(1:ncol(data), acpcor$sdev^2, type = "b", xlab = "Componente", ylab = "Variância", pch = 20, cex.axis = 1.3, cex.lab = 1.3, col="red")
+lines(c(1,13), c(1,1), col = "black", lwd = 1)
+```
+
+Pelo screeplot, o número de fatores escolhido foi 3, pois já 3 pontos acima da linha do 1.
+
+```{r}
+k <- 3 
+carfat <- acpcor$rotation[, 1:k] %*% diag(acpcor$sdev[1:k])
+colnames(carfat) <- paste("Fator", 1:k, sep = " ") 
+knitr::kable(carfat)
+```
+
+A partir desse resultado, os fatores ficam: Fator 1 (V3, V7, V8, V9, V10, V12, V13 e V14), Fator 2 (V2, V6 e V11) e Fator 3 (V4 e V5).
+
+## Rotação dos fatores
+
+Usando a rotação varimax:  
+```{r}
+carfatr <- varimax(carfat)
+carfatr
+```
+Com a rotação varimax, os fatores ficam: Fator 1 (V3, V7, V8, V9, V10, V12 e V13), Fator 2 (V2, V6, V11 e V14) e Fator 3 (V4 e V5).  
+
+## Comunalidade e variância específica
+
+As comunalidades representam a proporção da variância em cada variável original que é explicada pelos fatores, enquanto a variância específica é a proporção da variância que não é explicada pelos fatores.    
+
+```{r}
+comum <- rowSums(carfat^2) 
+vespec <- diag(cor(data)) - comum 
+estimat <- cbind(comum, vespec, diag(cor(data))) 
+rownames(estimat) <- colnames(data) 
+colnames(estimat) <- c("Comunalidade", "Variância única", "Variância") 
+knitr::kable(estimat)
+```
+
+## Matriz de resíduos
+
+Para concluir o modelo fatorial faltam os resíduos, $\hat{\epsilon}$.
+
+```{r}
+resid <- cor(data) - (carfat %*% t(carfat) + diag(vespec)) 
+knitr::kable(resid)
+```
+
+# Modelo Fatorial - Método Máxima Verossimilhança
+
+Agora estimando o modelo fatorial pelo método da máxima verossimilhança.  
+
+```{r}
+fat <- factanal(data, factors=k, rotation="none")
+
+fat$loadings
+```
+Os fatores ficam: Fator 1 (V3, V7, V8, V9, V10, V12, V13 e V14), Fator 2 (V2, V6 e V11) e Fator 3 (V4 e V5). Ou seja, o mesmo resultado que usando o método das componentes principais.  
+
+Fazendo uma comparação entre as comunalidade e unicidades usando os métodos de componentes principais e método de máxima verossimilhança.  
+```{r}
+unicidade <- fat$uniquenesses
+comunalidade_MV <- 1-unicidade
+
+estimat <- cbind(comum, vespec, comunalidade_MV,unicidade)
+rownames(estimat) <- colnames(data) 
+colnames(estimat) <- c("Comunalidade_CP", "Unicidade_CP", "Comunalidade_MV","Unicidade_MV") 
+knitr::kable(estimat)
+```
+
+## Rotação de fatores
+
+Fazendo a rotação varimax:  
+```{r}
+fat1 <- factanal(data,factors=k,rotation="varimax")
+
+fat1$loadings
+```
+Os fatores ficam: Fator 1 (V3, V7, V8, V9, V10, V12 e V13), Fator 2 (V2, V6, V11 e V14) e Fator 3 (V4 e V5). Mesmo resultado que usando o método das componentes principais com rotação varimax.  
+
+Agora a comparação engloba a tranformação varimax:  
+```{r}
+unicidade1 <- fat1$uniquenesses
+comunalidade1_MV <- 1-unicidade1
+
+estimat <- cbind(comum, vespec, comunalidade_MV,unicidade,comunalidade1_MV,unicidade1)
+rownames(estimat) <- colnames(data) 
+colnames(estimat) <- c("Comunalidade_CP", "Unicidade_CP", "Comunalidade_MV","Unicidade_MV","Comunalidade_varimax","Unicidade_varimax") 
+knitr::kable(estimat)
+```
+
+```{r}
+
+fat2 <- factanal(data,factors=k,rotation="varimax",scores="regression")
+scores=fat2$scores
+
+scores_ind <- (scores-min(scores))/(max(scores)-min(scores))
+boxplot(scores,col="blue")
+boxplot(scores_ind,col="red")
+
+scor <- cbind(scores,scores_ind)
+knitr::kable(scor)
+```
