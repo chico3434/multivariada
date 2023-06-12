@@ -1,7 +1,7 @@
 ---
 title: "Análise Multivariada"
 subtitle: "Análise de Cluster"
-author: "Francisco Rubens"
+author: "Francisco Rubens e Julio Cesar"
 date: "2023-05-30"
 output:
   rmdformats::readthedown:
@@ -66,14 +66,27 @@ datatable(dados, caption = "Base de dados")
 
 ```{r}
 boxplot(dados,col="magenta")
+```
+
+Pelo boxplot dos dados é possível perceber que as variáveis possuem escalas bem diferentes.  
+
+```{r}
 boxplot(dados.padronizados,col="blue")
 ```
+
+Já o boxplots com os dados padronizados é possível perceber que o problema de escala foi corrigido.  
+
 ```{r}
 knitr::kable(summary(dados))
 ```
+Pelo `summary` dos dados é possível perceber a diferença numérica das escalas entre as variáveis.  
+
 ```{r}
 knitr::kable(cov(dados), digits = 2, caption = "Matriz de variância e covariância")
 ```
+
+Na matriz de covariância é possível ver o impacto que tem as variáveis com maior escala na diagonal principal (variância).
+
 ```{r}
 knitr::kable(cor(dados), digits = 2, caption = "Matriz de correlação")
 plot(dados, col="red")
@@ -129,11 +142,14 @@ fviz_dist(d3,order=TRUE)
 
 ## Algoritmos de Agrupamento
 
-1. Hierarquico
+Os algoritmos de agrupamentos que serão abordados serão o método hierárquico, e os métodos não hierárquicos k-médias (k-means) e c-médias (c-means).
+
+
+1. Hierárquico
 2. k-means
 3. c-means
 
-## Metodo Hierarquico
+## Método Hierárquico
 
 ```{r wardD-method}
 fit=hclust(d1, method="ward.D")  # method pode ser "ward.D", "ward.D2", "single", #"complete", "average" (= UPGMA), "mcquitty" (= WPGMA), "median" (= WPGMC) or "centroid" (= UPGMC).
@@ -166,9 +182,8 @@ rect.hclust(fit, k=3, border="red") # retangulo mostrando os clusters
 plot(fit, hang = 0.1,cex = 0.6); 
 groups <- cutree(fit, k=4) # linha de corte k
 rect.hclust(fit, k=4, border="red") # retangulo mostrando os clusters
-
-
 ```
+
 Pela análise dos dendrogramas, o melhor número de clusters parece ser 3, pois é com 3 ramificações que a altura diminui acentuadamente.
 
 ```{r}
@@ -186,10 +201,9 @@ Esse gráfico confirma a escolha de 3 clusters. A partir do terceiro cluster a s
 ```{r}
 plot.phylo(as.phylo(fit), type="p", edge.col=4, edge.width=2, 
            show.node.label=TRUE, no.margin=TRUE,cex = 0.6)
-#fit$labels[fit$order] 
-mycl=cutree(fit, k=3)
-dados.agrupados <- data.frame(wine,mycl) 
-dados.agrupados[dados.agrupados$V1 != dados.agrupados$mycl,] %>% dim
+mycl <- cutree(fit, k=3)
+dados.agrupados <- data.frame(wine, cluster = mycl) 
+dados.agrupados[dados.agrupados$V1 != dados.agrupados$cluster,] %>% dim
 ```
 
 ```{r}
@@ -202,37 +216,89 @@ Pelo método hierárquico é possível perceber que alguns itens se misturam com
 ## Método K-means  
 
 ```{r}
-kmedia=kmeans(dados.padronizados, 3) # 5 cluster solution
+kmedia <- kmeans(dados.padronizados, 3) # 5 cluster solution
 kmedia$centers
 kmedia$size
 kmedia$iter
 
-aggregate(dados.padronizados,by=list(kmedia$cluster),FUN=mean)
+aggregate(dados.padronizados,by <- list(kmedia$cluster),FUN=mean)
 # append cluster assignment
 #crimespad=data.frame(crimespad, kmedia$cluster) 
-kmeans=data.frame(wine, kmedia$cluster)
-kmeans[kmeans$V1 != kmeans$kmedia.cluster,] %>% dim
+kmeans <- data.frame(wine, cluster = kmedia$cluster)
+kmeans[kmeans$V1 != kmeans$cluster,] %>% dim
 fviz_cluster(list(data = dados.padronizados, cluster = kmedia$cluster))
 ```
 
 ## Método c-means
 ```{r}
-fuzz=fanny(dados.padronizados, 3,memb.exp=1.5)
+fuzz <- fanny(dados.padronizados, 3,memb.exp=1.5)
 summary(fuzz)
 plot(fuzz)
 
 #stab <- stability(fuzz, graph = FALSE,B = 10)
-si=fuzz$silinfo
-cmeans=data.frame(wine, fuzz$clustering)
-cmeans[cmeans$V1 != cmeans$fuzz.clustering,] %>% dim
+si <- fuzz$silinfo
+cmeans <- data.frame(wine, cluster = fuzz$clustering)
+cmeans[cmeans$V1 != cmeans$cluster,] %>% dim
 fviz_cluster(list(data = dados.padronizados, cluster = fuzz$clustering))
 
 ```
 
+## PAM
+
+Para saber o número ótimo de clusters será feito esse gráfico:   
+```{r}
+fviz_nbclust(dados, pam, method = "silhouette")+
+  theme_classic()
+```
+Pela análise do gráfico nota-se que o número ótimo de cluster é 2.  
+
+```{r}
+k <- 2
+pam.res <- pam(dados, k, metric = "euclidean")
+
+names(pam.res)
+pam.res$medoids
+
+dpam <- cbind(wine, cluster = pam.res$cluster)
+dpam[dpam$V1 != dpam$cluster,] %>% dim
+
+fviz_cluster(pam.res, 
+             palette = c("#00AFBB", "#FC4E07"), # color palette
+             ellipse.type = "t", # Concentration ellipse
+             geom = "point", pointsize = 1, main="PAM",
+             ggtheme = theme_classic()
+)
+```
+Nota-se pelo gráfico que essa clusterização não ficou tão boa, pois há elementos classificados como do cluster 1 dentro do cluster 2 e vice-versa.
 
 
+## CLARA
 
+Número de clusters para o clara:  
 
+```{r}
+fviz_nbclust(dados, clara, method = "silhouette")+
+  theme_classic()
+```
+O número ótimo de clusters para o método CLARA também foi 2.  
 
+```{r}
+k <- 2
+clara.res <- clara(dados, k, samples = 50, sampsize=120, pamLike = TRUE)
+
+clara.res$medoids
+
+dclara <- cbind(wine, cluster = clara.res$cluster)
+dclara[dclara$V1 != dclara$cluster,] %>% dim
+
+fviz_cluster(clara.res, 
+             palette = c("#00AFBB", "#FC4E07"), # color palette
+             ellipse.type = "t", # Concentration ellipse
+             geom = "point", pointsize = 1,main="CLARA",
+             ggtheme = theme_classic()
+)
+
+```
+Pela análise do gráfico da clusterização usando o algoritmo CLARA é posível perceber o mesmo problema que acontece com o algoritmo PAM. Há pontos classificados como de um cluster na região do outro cluster.  
 
 
