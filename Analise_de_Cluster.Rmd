@@ -1,7 +1,7 @@
 ---
 title: "Análise Multivariada"
 subtitle: "Análise de Cluster"
-author: "Francisco Rubens"
+author: "Francisco Rubens e Antonia Xavier"
 date: "2023-05-30"
 output:
   rmdformats::readthedown:
